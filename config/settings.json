@@ -1,0 +1,29 @@
+{
+  "publishing": {
+    "posts_per_day": 3,
+    "optimal_times": ["09:00", "14:00", "18:00"],
+    "timezone": "Australia/Perth",
+    "avoid_weekends": true,
+    "min_thread_spacing_hours": 48
+  },
+  "content": {
+    "max_content_per_episode": 15,
+    "content_mix": {
+      "threads": 0.4,
+      "single_tweets": 0.4,
+      "quote_tweets": 0.2
+    },
+    "thread_length_range": [5, 7],
+    "max_tweet_length": 280
+  },
+  "research": {
+    "max_searches_per_insight": 3,
+    "source_credibility_threshold": 0.7,
+    "recency_preference_days": 730
+  },
+  "memory": {
+    "max_recent_topics": 20,
+    "performance_tracking_days": 90,
+    "learning_update_frequency": "daily"
+  }
+}

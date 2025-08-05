@@ -1,0 +1,22 @@
+{
+  "tone": "contrarian, framework-driven, practical",
+  "style_patterns": [
+    "Most SMEs are wrong about...",
+    "Unpopular opinion:",
+    "Everyone says X, but data shows Y",
+    "3-step framework that...",
+    "Here's why conventional wisdom fails..."
+  ],
+  "content_preferences": {
+    "framework_content": 0.4,
+    "contrarian_takes": 0.3,
+    "case_studies": 0.2,
+    "tactical_tips": 0.1
+  },
+  "avoid_patterns": [
+    "Generic business advice",
+    "Corporate jargon",
+    "Theoretical concepts without practical steps",
+    "Obvious or commonly known information"
+  ]
+}
