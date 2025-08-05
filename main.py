@@ -136,6 +136,14 @@ def process_episode(transcript_path: str) -> bool:
         agents = initialize_agents(config)
         print("✅ All agents initialized")
         
+        # Show cost limits
+        cost_limits = config.get("cost_limits", {})
+        if cost_limits.get("enable_cost_monitoring", True):
+            print(f"💰 Cost Protection Active:")
+            print(f"   • Daily limit: {cost_limits.get('daily_token_limit', 30000):,} tokens")
+            print(f"   • Episode limit: {cost_limits.get('episode_token_limit', 15000):,} tokens") 
+            print(f"   • Monthly budget: ${cost_limits.get('monthly_budget_usd', 50)}")
+        
         # Process transcript through CMO orchestrator
         print("🔄 Processing transcript...")
         results = agents["cmo"].process_transcript(transcript_path)
@@ -248,6 +256,7 @@ def show_usage():
 Usage:
     python main.py <transcript_file_path>    # Process a podcast transcript
     python main.py --status                  # Check system status
+    python main.py --cost-report             # Show cost usage report
     python main.py --help                    # Show this help message
 
 Examples:
@@ -259,6 +268,11 @@ Setup:
     2. Add your Claude and Typefully API keys
     3. Place transcript files in data/transcripts/
     4. Run: python main.py data/transcripts/your_transcript.txt
+
+Cost Management:
+    • Default limits: 30k tokens/day, $50/month
+    • Configure in config/settings.json under 'cost_limits'
+    • View usage: python main.py --cost-report
 
 For more information, see README.md
     """)
@@ -277,6 +291,10 @@ def main():
         sys.exit(0)
     elif arg in ["--status", "-s"]:
         show_system_status()
+        sys.exit(0)
+    elif arg in ["--cost-report", "--cost", "-c"]:
+        from scripts.cost_report import print_usage_report
+        print_usage_report()
         sys.exit(0)
     elif arg.startswith("--"):
         print(f"❌ Unknown option: {arg}")

@@ -4,6 +4,7 @@ import time
 from datetime import datetime
 from typing import Dict, Any, Optional, List
 from utils.logger import AgentLogger
+from utils.cost_monitor import CostMonitor
 
 
 class ContentGenerationError(Exception):
@@ -44,15 +45,44 @@ class RateLimiter:
 class ClaudeClient:
     """Client for Anthropic Claude API with error handling and rate limiting"""
     
-    def __init__(self, api_key: str):
+    def __init__(self, api_key: str, config: Optional[Dict[str, Any]] = None):
         self.client = anthropic.Anthropic(api_key=api_key)
         self.model = "claude-3-5-sonnet-20241022"
         self.logger = AgentLogger("claude_client")
-        self.rate_limiter = RateLimiter(calls=50, period=60)  # Conservative rate limiting
+        self.rate_limiter = RateLimiter(calls=10, period=60)  # Much more conservative: 10/minute
+        self.cost_monitor = CostMonitor(config or {})
+        
+        # Token estimation constants
+        self.chars_per_token = 4  # Rough estimate: 1 token ≈ 4 characters
     
     def generate_content(self, system_prompt: str, user_prompt: str, 
-                        max_tokens: int = 4000) -> str:
-        """Generate content using Claude API with error handling"""
+                        max_tokens: int = 2000, agent_name: str = "unknown",
+                        episode_id: Optional[str] = None) -> str:
+        """Generate content using Claude API with error handling and cost monitoring"""
+        
+        # Estimate input tokens
+        input_text = system_prompt + user_prompt
+        estimated_input_tokens = len(input_text) // self.chars_per_token
+        estimated_total_tokens = estimated_input_tokens + max_tokens
+        
+        # Check cost limits BEFORE making request
+        cost_check = self.cost_monitor.check_pre_request_limits(
+            agent_name, estimated_total_tokens, episode_id
+        )
+        
+        if not cost_check["allowed"]:
+            error_msg = f"Request blocked by cost limits: {'; '.join(cost_check['reasons'])}"
+            self.logger.log_error("cost_limit_blocked", error_msg, cost_check)
+            raise ContentGenerationError(error_msg)
+        
+        # Log cost estimate
+        self.logger.log_info("api_request_starting", {
+            "agent": agent_name,
+            "estimated_tokens": estimated_total_tokens,
+            "estimated_cost_usd": cost_check["estimated_cost_usd"],
+            "episode_id": episode_id
+        })
+        
         self.rate_limiter.wait_if_needed()
         start_time = time.time()
         
@@ -65,16 +95,34 @@ class ClaudeClient:
             )
             
             end_time = time.time()
+            
+            # Record actual usage
+            actual_input_tokens = response.usage.input_tokens
+            actual_output_tokens = response.usage.output_tokens
+            
+            self.cost_monitor.record_api_usage(
+                agent_name, actual_input_tokens, actual_output_tokens, 
+                episode_id, success=True
+            )
+            
             self.logger.log_api_call("claude", "messages.create", True, end_time - start_time)
+            self.logger.log_info("api_usage_actual", {
+                "agent": agent_name,
+                "input_tokens": actual_input_tokens,
+                "output_tokens": actual_output_tokens,
+                "total_tokens": actual_input_tokens + actual_output_tokens,
+                "cost_usd": round((actual_input_tokens * 0.000003) + (actual_output_tokens * 0.000015), 4)
+            })
             
             return response.content[0].text
             
         except anthropic.RateLimitError as e:
             self.logger.log_api_call("claude", "messages.create", False, time.time() - start_time)
             self.logger.log_error("rate_limit_error", str(e))
-            # Wait and retry once
-            time.sleep(60)
-            return self.generate_content(system_prompt, user_prompt, max_tokens)
+            # Wait and retry once with exponential backoff
+            wait_time = 60 + (time.time() % 30)  # 60-90 seconds
+            time.sleep(wait_time)
+            return self.generate_content(system_prompt, user_prompt, max_tokens, agent_name, episode_id)
             
         except anthropic.APIError as e:
             self.logger.log_api_call("claude", "messages.create", False, time.time() - start_time)

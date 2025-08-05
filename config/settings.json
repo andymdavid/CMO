@@ -7,17 +7,16 @@
     "min_thread_spacing_hours": 48
   },
   "content": {
-    "max_content_per_episode": 15,
+    "max_content_per_episode": 8,
     "content_mix": {
-      "threads": 0.4,
-      "single_tweets": 0.4,
-      "quote_tweets": 0.2
+      "threads": 0.3,
+      "single_tweets": 0.7
     },
-    "thread_length_range": [5, 7],
+    "thread_length_range": [4, 6],
     "max_tweet_length": 280
   },
   "research": {
-    "max_searches_per_insight": 3,
+    "max_searches_per_insight": 2,
     "source_credibility_threshold": 0.7,
     "recency_preference_days": 730
   },
@@ -25,5 +24,12 @@
     "max_recent_topics": 20,
     "performance_tracking_days": 90,
     "learning_update_frequency": "daily"
+  },
+  "cost_limits": {
+    "daily_token_limit": 30000,
+    "episode_token_limit": 15000,
+    "monthly_budget_usd": 50,
+    "max_insights_per_episode": 5,
+    "enable_cost_monitoring": true
   }
 }

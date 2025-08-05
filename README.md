@@ -186,9 +186,58 @@ The system tracks:
 - Content quality scores
 - Brand voice consistency
 
+## 💰 Cost Management & Bill Shock Protection
+
+### Built-in Cost Protection
+The system includes comprehensive cost monitoring to prevent unexpected API bills:
+
+- **Daily Token Limits**: 30,000 tokens/day (≈ $6-12/day)
+- **Episode Limits**: 15,000 tokens/episode (≈ $3-6/episode)
+- **Monthly Budget**: $50/month default
+- **Pre-request Validation**: Blocks requests that would exceed limits
+
+### Cost Monitoring Commands
+```bash
+# View current usage and costs
+python main.py --cost-report
+
+# Check cost breakdown for specific episode
+python scripts/cost_report.py --episode episode_001
+
+# View system status including cost info
+python main.py --status
+```
+
+### Cost Configuration
+Edit `config/settings.json` to adjust limits:
+```json
+{
+  "cost_limits": {
+    "daily_token_limit": 30000,
+    "episode_token_limit": 15000,
+    "monthly_budget_usd": 50,
+    "enable_cost_monitoring": true
+  }
+}
+```
+
+### Expected Costs
+- **Per Episode**: $3-6 (15k tokens typical)
+- **Daily Usage**: $6-12 maximum with limits
+- **Monthly**: $20-50 for 1 episode/week
+
 ## 🔧 Troubleshooting
 
 ### Common Issues
+
+**Cost Limit Exceeded**
+```bash
+# Check current usage
+python main.py --cost-report
+
+# Adjust limits in config/settings.json
+# Or wait for daily/monthly reset
+```
 
 **Claude API Authentication Failed**
 ```bash

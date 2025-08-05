@@ -13,15 +13,18 @@ class CMOOrchestrator(BaseAgent):
     
     def __init__(self, config: Dict[str, Any]):
         super().__init__("cmo_orchestrator", config)
-        self.claude_client = ClaudeClient(config["claude_api_key"])
+        self.claude_client = ClaudeClient(config["claude_api_key"], config)
         
         # Will be injected during initialization
         self.research_agent = None
         self.content_agent = None  
         self.publishing_agent = None
         
-        # Configuration
-        self.max_insights_per_episode = config.get("content", {}).get("max_content_per_episode", 15)
+        # Configuration with cost limits
+        self.max_insights_per_episode = min(
+            config.get("content", {}).get("max_content_per_episode", 8),
+            config.get("cost_limits", {}).get("max_insights_per_episode", 5)
+        )
         self.min_priority_score = 0.6  # Minimum score for content creation
     
     def process_task(self, task: Dict[str, Any]) -> Dict[str, Any]:
@@ -51,6 +54,7 @@ class CMOOrchestrator(BaseAgent):
             # Load and validate transcript
             transcript_data = self.file_manager.load_transcript(transcript_path)
             episode_id = self.file_manager.get_episode_id_from_transcript(transcript_path)
+            self._current_episode_id = episode_id  # Store for cost tracking
             
             self.log_decision("transcript_loaded", 
                             {"episode_id": episode_id, "word_count": transcript_data["word_count"]}, 
