@@ -34,18 +34,15 @@ def load_config() -> dict:
         
         # Add API keys from environment
         config.update({
-            "claude_api_key": os.getenv("CLAUDE_API_KEY"),
-            "typefully_api_key": os.getenv("TYPEFULLY_API_KEY"),
-            "openrouter_api_key": os.getenv("OPENROUTER_API_KEY")
+            "openrouter_api_key": os.getenv("OPENROUTER_API_KEY"),
+            "typefully_api_key": os.getenv("TYPEFULLY_API_KEY")
         })
         
         # Validate required API keys
-        if not config["claude_api_key"]:
-            raise ValueError("CLAUDE_API_KEY not found in environment variables")
+        if not config["openrouter_api_key"]:
+            raise ValueError("OPENROUTER_API_KEY not found in environment variables")
         if not config["typefully_api_key"]:
             print("Warning: TYPEFULLY_API_KEY not found - publishing will be simulated")
-        if not config["openrouter_api_key"]:
-            print("Warning: OPENROUTER_API_KEY not found - using Claude only (higher costs)")
         
         return config
         
@@ -225,20 +222,15 @@ def show_system_status():
         print("✅ File system ready")
         
         # Check API connectivity (basic validation)
-        if config.get("claude_api_key"):
-            print("✅ Claude API key configured")
+        if config.get("openrouter_api_key"):
+            print("✅ OpenRouter API key configured (all models via unified API)")
         else:
-            print("❌ Claude API key missing")
+            print("❌ OpenRouter API key missing")
             
         if config.get("typefully_api_key"):
             print("✅ Typefully API key configured")
         else:
             print("⚠️  Typefully API key missing (publishing will be simulated)")
-            
-        if config.get("openrouter_api_key"):
-            print("✅ OpenRouter API key configured (cost optimization enabled)")
-        else:
-            print("⚠️  OpenRouter API key missing (using Claude only - higher costs)")
         
         # Check directory structure
         required_dirs = ["data/transcripts", "data/content/generated", "data/content/published", 
@@ -265,7 +257,6 @@ Usage:
     python main.py <transcript_file_path>    # Process a podcast transcript
     python main.py --status                  # Check system status
     python main.py --cost-report             # Show cost usage report
-    python main.py --cost-comparison         # Show OpenRouter cost savings
     python main.py --help                    # Show this help message
 
 Examples:
@@ -279,8 +270,9 @@ Setup:
     4. Run: python main.py data/transcripts/your_transcript.txt
 
 Cost Management:
-    • Default limits: 30k tokens/day, $50/month
-    • Configure in config/settings.json under 'cost_limits'
+    • OpenRouter provides access to both Claude and DeepSeek models
+    • Intelligent routing: Claude for reasoning, DeepSeek for content
+    • Configure limits in config/settings.json under 'cost_limits'
     • View usage: python main.py --cost-report
 
 For more information, see README.md
@@ -304,10 +296,6 @@ def main():
     elif arg in ["--cost-report", "--cost", "-c"]:
         from scripts.cost_report import print_usage_report
         print_usage_report()
-        sys.exit(0)
-    elif arg in ["--cost-comparison", "--compare"]:
-        from scripts.cost_comparison import print_cost_comparison
-        print_cost_comparison()
         sys.exit(0)
     elif arg.startswith("--"):
         print(f"❌ Unknown option: {arg}")

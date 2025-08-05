@@ -9,7 +9,7 @@ from config.prompts.content_prompts import (
     TACTICAL_TIP_PROMPT,
     BRAND_VOICE_VALIDATION_PROMPT
 )
-from utils.api_client import ClaudeClient, OpenRouterClient, ModelRouter, ContentGenerationError
+from utils.api_client import OpenRouterClient, ModelRouter, ContentGenerationError
 
 
 class ContentAgent(BaseAgent):
@@ -21,21 +21,14 @@ class ContentAgent(BaseAgent):
     def __init__(self, config: Dict[str, Any]):
         super().__init__("content_agent", config)
         
-        # Initialize both clients
-        self.claude_client = ClaudeClient(config["claude_api_key"], config)
-        
-        # Initialize OpenRouter client if API key is available
+        # Initialize OpenRouter client and model router
         openrouter_key = config.get("openrouter_api_key")
-        if openrouter_key:
-            self.openrouter_client = OpenRouterClient(openrouter_key, config)
-            self.model_router = ModelRouter(self.claude_client, self.openrouter_client)
-            self.use_model_routing = True
-            self.logger.log_info("OpenRouter integration enabled - using cost-optimized routing")
-        else:
-            self.openrouter_client = None
-            self.model_router = None
-            self.use_model_routing = False
-            self.logger.log_info("OpenRouter not configured - using Claude only")
+        if not openrouter_key:
+            raise ValueError("OPENROUTER_API_KEY is required for content generation")
+        
+        self.openrouter_client = OpenRouterClient(openrouter_key, config)
+        self.model_router = ModelRouter(self.openrouter_client)
+        self.logger.log_info("Content agent initialized with OpenRouter - all models via unified API")
         
         # Load brand voice and content templates
         self.brand_voice = self.file_manager.load_brand_voice()
@@ -188,21 +181,13 @@ class ContentAgent(BaseAgent):
                 case_studies=json.dumps(research_data.get("case_studies", []))
             )
             
-            if self.use_model_routing:
-                response = self.model_router.generate_content(
-                    task_type="framework_thread",
-                    system_prompt=CONTENT_SYSTEM_PROMPT,
-                    user_prompt=prompt,
-                    max_tokens=2000,
-                    agent_name="content_agent"
-                )
-            else:
-                response = self.claude_client.generate_content(
-                    system_prompt=CONTENT_SYSTEM_PROMPT,
-                    user_prompt=prompt,
-                    max_tokens=2000,
-                    agent_name="content_agent"
-                )
+            response = self.model_router.generate_content(
+                task_type="framework_thread",
+                system_prompt=CONTENT_SYSTEM_PROMPT,
+                user_prompt=prompt,
+                max_tokens=2000,
+                agent_name="content_agent"
+            )
             
             # Parse thread response
             try:
@@ -244,21 +229,13 @@ class ContentAgent(BaseAgent):
                 case_examples=json.dumps(research_data.get("case_studies", []))
             )
             
-            if self.use_model_routing:
-                response = self.model_router.generate_content(
-                    task_type="contrarian_content",
-                    system_prompt=CONTENT_SYSTEM_PROMPT,
-                    user_prompt=prompt,
-                    max_tokens=1500,
-                    agent_name="content_agent"
-                )
-            else:
-                response = self.claude_client.generate_content(
-                    system_prompt=CONTENT_SYSTEM_PROMPT,
-                    user_prompt=prompt,
-                    max_tokens=1500,
-                    agent_name="content_agent"
-                )
+            response = self.model_router.generate_content(
+                task_type="contrarian_content",
+                system_prompt=CONTENT_SYSTEM_PROMPT,
+                user_prompt=prompt,
+                max_tokens=1500,
+                agent_name="content_agent"
+            )
             
             # Parse contrarian content response
             try:
@@ -302,21 +279,13 @@ class ContentAgent(BaseAgent):
                 key_learning=insight.get("content", "")
             )
             
-            if self.use_model_routing:
-                response = self.model_router.generate_content(
-                    task_type="case_study_content",
-                    system_prompt=CONTENT_SYSTEM_PROMPT,
-                    user_prompt=prompt,
-                    max_tokens=1000,
-                    agent_name="content_agent"
-                )
-            else:
-                response = self.claude_client.generate_content(
-                    system_prompt=CONTENT_SYSTEM_PROMPT,
-                    user_prompt=prompt,
-                    max_tokens=1000,
-                    agent_name="content_agent"
-                )
+            response = self.model_router.generate_content(
+                task_type="case_study_content",
+                system_prompt=CONTENT_SYSTEM_PROMPT,
+                user_prompt=prompt,
+                max_tokens=1000,
+                agent_name="content_agent"
+            )
             
             # Parse case study content
             try:
@@ -357,21 +326,13 @@ class ContentAgent(BaseAgent):
                 sme_context=insight.get("business_context", "")
             )
             
-            if self.use_model_routing:
-                response = self.model_router.generate_content(
-                    task_type="tactical_content",
-                    system_prompt=CONTENT_SYSTEM_PROMPT,
-                    user_prompt=prompt,
-                    max_tokens=1200,
-                    agent_name="content_agent"
-                )
-            else:
-                response = self.claude_client.generate_content(
-                    system_prompt=CONTENT_SYSTEM_PROMPT,
-                    user_prompt=prompt,
-                    max_tokens=1200,
-                    agent_name="content_agent"
-                )
+            response = self.model_router.generate_content(
+                task_type="tactical_content",
+                system_prompt=CONTENT_SYSTEM_PROMPT,
+                user_prompt=prompt,
+                max_tokens=1200,
+                agent_name="content_agent"
+            )
             
             # Parse tactical tips
             try:
@@ -410,8 +371,9 @@ class ContentAgent(BaseAgent):
                 content=json.dumps(content_piece, indent=2)
             )
             
-            # Brand voice validation always uses Claude for consistency
-            response = self.claude_client.generate_content(
+            # Brand voice validation uses Claude via OpenRouter for consistency
+            response = self.model_router.generate_content(
+                task_type="brand_voice_validation",
                 system_prompt=CONTENT_SYSTEM_PROMPT,
                 user_prompt=prompt,
                 max_tokens=800,

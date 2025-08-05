@@ -2,7 +2,7 @@ import json
 from typing import List, Dict, Any
 from agents.base_agent import BaseAgent
 from config.prompts.cmo_prompts import CMO_SYSTEM_PROMPT, INSIGHT_EXTRACTION_PROMPT, INSIGHT_PRIORITIZATION_PROMPT
-from utils.api_client import ClaudeClient, ContentGenerationError
+from utils.api_client import OpenRouterClient, ModelRouter, ContentGenerationError
 
 
 class CMOOrchestrator(BaseAgent):
@@ -13,7 +13,13 @@ class CMOOrchestrator(BaseAgent):
     
     def __init__(self, config: Dict[str, Any]):
         super().__init__("cmo_orchestrator", config)
-        self.claude_client = ClaudeClient(config["claude_api_key"], config)
+        # Initialize OpenRouter client and model router
+        openrouter_key = config.get("openrouter_api_key")
+        if not openrouter_key:
+            raise ValueError("OPENROUTER_API_KEY is required for CMO operation")
+        
+        self.openrouter_client = OpenRouterClient(openrouter_key, config)
+        self.model_router = ModelRouter(self.openrouter_client)
         
         # Will be injected during initialization
         self.research_agent = None
@@ -118,10 +124,13 @@ class CMOOrchestrator(BaseAgent):
         try:
             prompt = INSIGHT_EXTRACTION_PROMPT.format(transcript=transcript)
             
-            response = self.claude_client.generate_content(
+            response = self.model_router.generate_content(
+                task_type="insight_extraction",
                 system_prompt=CMO_SYSTEM_PROMPT,
                 user_prompt=prompt,
-                max_tokens=3000
+                max_tokens=2000,
+                agent_name="cmo_orchestrator",
+                episode_id=getattr(self, '_current_episode_id', None)
             )
             
             # Parse structured response from Claude
@@ -172,10 +181,13 @@ class CMOOrchestrator(BaseAgent):
             # Use Claude to prioritize insights
             prompt = INSIGHT_PRIORITIZATION_PROMPT.format(insights=json.dumps(insights, indent=2))
             
-            response = self.claude_client.generate_content(
+            response = self.model_router.generate_content(
+                task_type="insight_prioritization",
                 system_prompt=CMO_SYSTEM_PROMPT,
                 user_prompt=prompt,
-                max_tokens=4000
+                max_tokens=2000,
+                agent_name="cmo_orchestrator",
+                episode_id=getattr(self, '_current_episode_id', None)
             )
             
             # Parse prioritized insights

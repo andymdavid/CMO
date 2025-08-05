@@ -6,7 +6,7 @@ from config.prompts.research_prompts import (
     SEARCH_QUERY_GENERATION_PROMPT, 
     RESEARCH_ANALYSIS_PROMPT
 )
-from utils.api_client import ClaudeClient, WebSearchClient, ContentGenerationError
+from utils.api_client import OpenRouterClient, ModelRouter, WebSearchClient, ContentGenerationError
 
 
 class ResearchAgent(BaseAgent):
@@ -17,7 +17,14 @@ class ResearchAgent(BaseAgent):
     
     def __init__(self, config: Dict[str, Any]):
         super().__init__("research_agent", config)
-        self.claude_client = ClaudeClient(config["claude_api_key"])
+        
+        # Initialize OpenRouter client and model router
+        openrouter_key = config.get("openrouter_api_key")
+        if not openrouter_key:
+            raise ValueError("OPENROUTER_API_KEY is required for research operations")
+        
+        self.openrouter_client = OpenRouterClient(openrouter_key, config)
+        self.model_router = ModelRouter(self.openrouter_client)
         self.web_search_client = WebSearchClient()
         
         # Configuration
@@ -127,10 +134,12 @@ class ResearchAgent(BaseAgent):
                 research_angle=research_angle
             )
             
-            response = self.claude_client.generate_content(
+            response = self.model_router.generate_content(
+                task_type="search_query_generation",
                 system_prompt=RESEARCH_SYSTEM_PROMPT,
                 user_prompt=prompt,
-                max_tokens=1000
+                max_tokens=1000,
+                agent_name="research_agent"
             )
             
             # Parse query generation response
@@ -185,10 +194,12 @@ class ResearchAgent(BaseAgent):
                 search_results=json.dumps(search_results[:10], indent=2)  # Limit to first 10 results
             )
             
-            response = self.claude_client.generate_content(
+            response = self.model_router.generate_content(
+                task_type="research_analysis",
                 system_prompt=RESEARCH_SYSTEM_PROMPT,
                 user_prompt=prompt,
-                max_tokens=2000
+                max_tokens=2000,
+                agent_name="research_agent"
             )
             
             # Parse analysis response

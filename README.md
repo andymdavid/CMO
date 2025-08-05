@@ -30,9 +30,8 @@ The system uses a multi-agent architecture to:
 
 ### Prerequisites
 - Python 3.10+
-- Claude Pro account with API access
+- OpenRouter account with API access
 - Typefully account (free tier works)
-- OpenRouter account (optional, for 90% cost savings)
 
 ### Installation
 
@@ -49,9 +48,8 @@ pip install -r requirements.txt
 ```bash
 cp config/api_keys.env.example config/api_keys.env
 # Edit config/api_keys.env with your actual API keys:
-# CLAUDE_API_KEY=your_claude_api_key_here
+# OPENROUTER_API_KEY=your_openrouter_api_key_here
 # TYPEFULLY_API_KEY=your_typefully_api_key_here
-# OPENROUTER_API_KEY=your_openrouter_api_key_here  # Optional, for cost savings
 ```
 
 3. **Test the system**:
@@ -190,27 +188,25 @@ The system tracks:
 
 ## 💰 Cost Management & Bill Shock Protection
 
-### OpenRouter Integration (90% Cost Savings) 🚀
-The system uses intelligent model routing for dramatic cost reduction:
+### OpenRouter Unified API 🚀
+The system uses OpenRouter for all model access with intelligent routing:
 
-- **Claude**: Reserved for complex reasoning (insight extraction, prioritization)
-- **DeepSeek via OpenRouter**: Handles content generation tasks at ~1/50th the cost
-- **Automatic Routing**: Tasks routed to optimal model automatically
-- **Quality Maintained**: Strategic tasks still use Claude's superior reasoning
+- **Claude via OpenRouter**: Used for complex reasoning (insight extraction, prioritization)
+- **DeepSeek via OpenRouter**: Handles content generation tasks at very low cost
+- **Automatic Routing**: Tasks routed to optimal model automatically based on complexity
+- **Single API**: One key, multiple models, consistent interface
+- **Quality Maintained**: Strategic tasks use Claude, content generation uses cost-effective models
 
 ### Built-in Cost Protection
 The system includes comprehensive cost monitoring to prevent unexpected API bills:
 
-- **Daily Token Limits**: 50,000 tokens/day (≈ $2-4/day with OpenRouter)
-- **Episode Limits**: 25,000 tokens/episode (≈ $0.50-1.50/episode with OpenRouter)
-- **Monthly Budget**: $20/month default with OpenRouter
+- **Daily Token Limits**: 50,000 tokens/day
+- **Episode Limits**: 25,000 tokens/episode
+- **Monthly Budget**: $20/month default
 - **Pre-request Validation**: Blocks requests that would exceed limits
 
 ### Cost Monitoring Commands
 ```bash
-# Show OpenRouter cost savings comparison
-python main.py --cost-comparison
-
 # View current usage and costs
 python main.py --cost-report
 
@@ -235,15 +231,11 @@ Edit `config/settings.json` to adjust limits:
 ```
 
 ### Expected Costs
-**With OpenRouter (Recommended):**
-- **Per Episode**: $0.50-1.50 (25k tokens, 90% via DeepSeek)
+**OpenRouter Intelligent Routing:**
+- **Per Episode**: $0.50-1.50 (intelligent model selection)
 - **Daily Usage**: $2-4 maximum with limits
 - **Monthly**: $5-15 for 1 episode/week
-
-**Claude-Only (Legacy):**
-- **Per Episode**: $3-6 (15k tokens)
-- **Daily Usage**: $6-12 maximum
-- **Monthly**: $20-50 for 1 episode/week
+- **Cost Breakdown**: Claude for reasoning (~30%), DeepSeek for content (~70%)
 
 ## 🔧 Troubleshooting
 
@@ -258,10 +250,10 @@ python main.py --cost-report
 # Or wait for daily/monthly reset
 ```
 
-**Claude API Authentication Failed**
+**OpenRouter API Authentication Failed**
 ```bash
 # Verify API key is set
-python -c "import os; from dotenv import load_dotenv; load_dotenv('config/api_keys.env'); print('Claude API Key:', bool(os.getenv('CLAUDE_API_KEY')))"
+python -c "import os; from dotenv import load_dotenv; load_dotenv('config/api_keys.env'); print('OpenRouter API Key:', bool(os.getenv('OPENROUTER_API_KEY')))"
 ```
 
 **No Content Generated**
