@@ -53,10 +53,11 @@ data/content/generated/
 data/content/published/
 data/research/
 data/memory/*.json
-data/transcripts/*.txt
+data/transcripts/*
 
-# Except sample/template files
-!data/transcripts/test_episode.txt
+# Except documentation and essential configs
+!data/transcripts/.gitkeep
+!data/transcripts/README.md
 !data/memory/brand_voice.json
 
 # Testing
