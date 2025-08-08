@@ -40,6 +40,15 @@ class ContentAgent(BaseAgent):
         self.quality_threshold = 0.7  # Minimum quality score for approval
         self.brand_voice_threshold = 0.8  # Minimum brand voice score
     
+    def _clean_json_response(self, response: str) -> str:
+        """Clean Claude's response by removing markdown code blocks"""
+        cleaned_response = response.strip()
+        if cleaned_response.startswith('```json'):
+            cleaned_response = cleaned_response.replace('```json', '').replace('```', '').strip()
+        elif cleaned_response.startswith('```'):
+            cleaned_response = cleaned_response.replace('```', '').strip()
+        return cleaned_response
+    
     def process_task(self, task: Dict[str, Any]) -> Dict[str, Any]:
         """Process content generation task"""
         if not self.validate_input(task):
@@ -63,15 +72,16 @@ class ContentAgent(BaseAgent):
         research_data = task["research_data"]
         content_requirements = task.get("content_requirements", {})
         
+        insight_type = insight.get("type", "unknown")
         self.log_decision("content_generation_started", 
-                         {"insight_id": insight["id"], "insight_type": insight["type"]}, 
+                         {"insight_id": insight.get("id", "unknown_id"), "insight_type": insight_type}, 
                          "beginning_content_creation")
         
         try:
             content_pieces = []
             generation_metadata = {
-                "insight_id": insight["id"],
-                "insight_type": insight["type"],
+                "insight_id": insight.get("id", "unknown_id"),
+                "insight_type": insight_type,
                 "content_types_generated": [],
                 "total_pieces": 0,
                 "quality_scores": []
@@ -123,7 +133,7 @@ class ContentAgent(BaseAgent):
             )
             
             self.log_decision("content_generation_completed",
-                            {"insight_id": insight["id"], 
+                            {"insight_id": insight.get("id", "unknown_id"), 
                              "pieces_generated": len(validated_content),
                              "avg_quality": generation_metadata["avg_quality_score"]},
                             "content_creation_successful")
@@ -137,7 +147,7 @@ class ContentAgent(BaseAgent):
             # Learn from successful content patterns
             if len(validated_content) >= 3:
                 self.learn_from_success({
-                    "insight_type": insight["type"],
+                    "insight_type": insight.get("type", "unknown"),
                     "content_types": generation_metadata["content_types_generated"],
                     "pieces_count": len(validated_content),
                     "avg_quality": generation_metadata["avg_quality_score"]
@@ -146,7 +156,7 @@ class ContentAgent(BaseAgent):
             self.save_memory()
             
             return {
-                "insight_id": insight["id"],
+                "insight_id": insight.get("id", "unknown_id"),
                 "content_pieces": validated_content,
                 "generation_metadata": generation_metadata,
                 "status": "completed"
@@ -154,7 +164,7 @@ class ContentAgent(BaseAgent):
             
         except Exception as e:
             self.log_decision("content_generation_failed", 
-                            {"insight_id": insight["id"], "error": str(e)}, 
+                            {"insight_id": insight.get("id", "unknown_id"), "error": str(e)}, 
                             "content_creation_failed")
             
             # Learn from failure
@@ -165,7 +175,7 @@ class ContentAgent(BaseAgent):
             })
             
             return {
-                "insight_id": insight["id"],
+                "insight_id": insight.get("id", "unknown_id"),
                 "content_pieces": [],
                 "error": str(e),
                 "status": "failed"
@@ -175,7 +185,7 @@ class ContentAgent(BaseAgent):
         """Generate Twitter thread breaking down business framework"""
         try:
             prompt = FRAMEWORK_THREAD_PROMPT.format(
-                framework_title=insight["title"],
+                framework_title=insight.get("title", "Unknown"),
                 framework_steps=json.dumps(insight.get("steps", [])),
                 supporting_research=json.dumps(research_data.get("key_findings", [])),
                 case_studies=json.dumps(research_data.get("case_studies", []))
@@ -191,9 +201,11 @@ class ContentAgent(BaseAgent):
             
             # Parse thread response
             try:
-                thread_data = json.loads(response)
+                cleaned_response = self._clean_json_response(response)
+                thread_data = json.loads(cleaned_response)
             except json.JSONDecodeError:
-                self.logger.log_error("thread_parse_error", "Failed to parse thread response")
+                self.logger.log_error("thread_parse_error", "Failed to parse thread response", 
+                                    {"response": response[:500]})
                 return None
             
             # Validate thread structure and character limits
@@ -205,7 +217,7 @@ class ContentAgent(BaseAgent):
                     "tweet_count": len(thread_data["thread_tweets"]) + 1,
                     "engagement_elements": thread_data.get("engagement_elements", []),
                     "metadata": {
-                        "framework_title": insight["title"],
+                        "framework_title": insight.get("title", "Unknown"),
                         "character_counts": thread_data.get("character_counts", []),
                         "estimated_engagement": "high"  # Framework threads typically perform well
                     }
@@ -223,7 +235,7 @@ class ContentAgent(BaseAgent):
         """Generate contrarian content that challenges conventional wisdom"""
         try:
             prompt = CONTRARIAN_TWEET_PROMPT.format(
-                insight_title=insight["title"],
+                insight_title=insight.get("title", "Unknown"),
                 contrarian_angle=insight.get("contrarian_angle", ""),
                 supporting_data=json.dumps(research_data.get("supporting_data", [])),
                 case_examples=json.dumps(research_data.get("case_studies", []))
@@ -239,9 +251,12 @@ class ContentAgent(BaseAgent):
             
             # Parse contrarian content response
             try:
-                contrarian_data = json.loads(response)
+                cleaned_response = self._clean_json_response(response)
+                contrarian_data = json.loads(cleaned_response)
                 contrarian_pieces = contrarian_data.get("contrarian_pieces", [])
             except json.JSONDecodeError:
+                self.logger.log_error("contrarian_parse_error", "Failed to parse contrarian content response", 
+                                    {"response": response[:500]})
                 return []
             
             # Convert to standard content format
@@ -275,7 +290,7 @@ class ContentAgent(BaseAgent):
         try:
             prompt = CASE_STUDY_CONTENT_PROMPT.format(
                 case_studies=json.dumps(case_studies),
-                business_principle=insight["title"],
+                business_principle=insight.get("title", "Unknown"),
                 key_learning=insight.get("content", "")
             )
             
@@ -289,9 +304,12 @@ class ContentAgent(BaseAgent):
             
             # Parse case study content
             try:
-                case_study_data = json.loads(response)
+                cleaned_response = self._clean_json_response(response)
+                case_study_data = json.loads(cleaned_response)
                 case_study_pieces = case_study_data.get("case_study_content", [])
             except json.JSONDecodeError:
+                self.logger.log_error("case_study_parse_error", "Failed to parse case study content response", 
+                                    {"response": response[:500]})
                 return []
             
             # Format case study content
@@ -321,7 +339,7 @@ class ContentAgent(BaseAgent):
         """Generate tactical, actionable tips for SME owners"""
         try:
             prompt = TACTICAL_TIP_PROMPT.format(
-                insight_content=insight["content"],
+                insight_content=insight.get("content", ""),
                 research_data=json.dumps(research_data.get("key_findings", [])),
                 sme_context=insight.get("business_context", "")
             )
@@ -336,9 +354,12 @@ class ContentAgent(BaseAgent):
             
             # Parse tactical tips
             try:
-                tactical_data = json.loads(response)
+                cleaned_response = self._clean_json_response(response)
+                tactical_data = json.loads(cleaned_response)
                 tactical_tips = tactical_data.get("tactical_tips", [])
             except json.JSONDecodeError:
+                self.logger.log_error("tactical_parse_error", "Failed to parse tactical content response", 
+                                    {"response": response[:500]})
                 return []
             
             # Format tactical content
@@ -382,8 +403,11 @@ class ContentAgent(BaseAgent):
             
             # Parse validation response
             try:
-                validation_result = json.loads(response)
+                cleaned_response = self._clean_json_response(response)
+                validation_result = json.loads(cleaned_response)
             except json.JSONDecodeError:
+                self.logger.log_error("validation_parse_error", "Failed to parse validation response", 
+                                    {"response": response[:500]})
                 # Fallback validation
                 validation_result = self._fallback_validation(content_piece)
             

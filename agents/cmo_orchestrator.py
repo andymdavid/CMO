@@ -134,18 +134,40 @@ class CMOOrchestrator(BaseAgent):
             )
             
             # Parse structured response from Claude
+            # First, clean the response by removing markdown code blocks if present
+            cleaned_response = response.strip()
+            if cleaned_response.startswith('```json'):
+                cleaned_response = cleaned_response.replace('```json', '').replace('```', '').strip()
+            elif cleaned_response.startswith('```'):
+                cleaned_response = cleaned_response.replace('```', '').strip()
+            
             try:
-                insights = json.loads(response)
+                parsed_response = json.loads(cleaned_response)
+                
+                # Handle different response formats from Claude
+                if isinstance(parsed_response, list):
+                    insights = parsed_response
+                elif isinstance(parsed_response, dict) and 'insights' in parsed_response:
+                    insights = parsed_response['insights']
+                else:
+                    self.logger.log_error("unexpected_response_format", 
+                                        f"Unexpected response format: {type(parsed_response).__name__}", 
+                                        {"response_content": str(parsed_response)[:500]})
+                    raise ValueError("Response format not recognized - expected list or dict with 'insights' key")
+                
                 if not isinstance(insights, list):
-                    raise ValueError("Response is not a list")
+                    raise ValueError("Insights is not a list")
                     
             except json.JSONDecodeError as e:
-                self.logger.log_error("json_parse_error", f"Failed to parse Claude response: {e}")
+                self.logger.log_error("json_parse_error", f"Failed to parse Claude response: {e}", {"response": cleaned_response[:500]})
                 # Try to extract JSON from response if it's wrapped in other text
                 import re
-                json_match = re.search(r'\[.*\]', response, re.DOTALL)
+                json_match = re.search(r'\[.*\]', cleaned_response, re.DOTALL)
                 if json_match:
-                    insights = json.loads(json_match.group())
+                    try:
+                        insights = json.loads(json_match.group())
+                    except json.JSONDecodeError:
+                        raise ContentGenerationError("Could not extract valid JSON from Claude response")
                 else:
                     raise ContentGenerationError("Could not extract valid JSON from Claude response")
             
@@ -192,7 +214,28 @@ class CMOOrchestrator(BaseAgent):
             
             # Parse prioritized insights
             try:
-                prioritized_insights = json.loads(response)
+                # Clean the response by removing markdown code blocks if present
+                cleaned_response = response.strip()
+                if cleaned_response.startswith('```json'):
+                    cleaned_response = cleaned_response.replace('```json', '').replace('```', '').strip()
+                elif cleaned_response.startswith('```'):
+                    cleaned_response = cleaned_response.replace('```', '').strip()
+                
+                parsed_response = json.loads(cleaned_response)
+                
+                # Handle different response formats from Claude
+                if isinstance(parsed_response, list):
+                    prioritized_insights = parsed_response
+                elif isinstance(parsed_response, dict) and 'insights' in parsed_response:
+                    prioritized_insights = parsed_response['insights']
+                else:
+                    # Try to get any array from the response
+                    for value in parsed_response.values():
+                        if isinstance(value, list):
+                            prioritized_insights = value
+                            break
+                    else:
+                        raise ValueError("No valid insights array found in response")
             except json.JSONDecodeError:
                 # Fallback to manual prioritization if Claude response is invalid
                 self.logger.log_error("prioritization_parse_error", 

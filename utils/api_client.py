@@ -50,9 +50,9 @@ class TypefullyClient:
     
     def __init__(self, api_key: str):
         self.api_key = api_key
-        self.base_url = "https://api.typefully.com/v1"
+        self.base_url = "https://api.typefully.com"
         self.headers = {
-            "Authorization": f"Bearer {api_key}",
+            "X-API-KEY": f"Bearer {api_key}",
             "Content-Type": "application/json"
         }
         self.logger = AgentLogger("typefully_client")
@@ -62,39 +62,43 @@ class TypefullyClient:
         """Create a draft post in Typefully"""
         self.rate_limiter.wait_if_needed()
         
+        if thread_tweets:
+            # For threads, join all tweets with newlines - Typefully will auto-split
+            full_content = "\n\n".join([content] + thread_tweets)
+        else:
+            full_content = content
+        
         payload = {
-            "content": content,
-            "status": "draft"
+            "content": full_content
         }
         
-        if thread_tweets:
-            payload["tweets"] = thread_tweets
-        
-        return self._make_request("POST", "/drafts", payload)
+        return self._make_request("POST", "/v1/drafts/", payload)
     
     def schedule_post(self, content: str, publish_time: datetime, 
                      thread_tweets: Optional[List[str]] = None) -> Dict[str, Any]:
         """Schedule content for publication via Typefully"""
         self.rate_limiter.wait_if_needed()
         
+        if thread_tweets:
+            # For threads, join all tweets with newlines - Typefully will auto-split
+            full_content = "\n\n".join([content] + thread_tweets)
+        else:
+            full_content = content
+        
         payload = {
-            "content": content,
-            "schedule_time": publish_time.isoformat(),
-            "status": "scheduled"
+            "content": full_content,
+            "schedule-date": publish_time.isoformat()
         }
         
-        if thread_tweets:
-            payload["tweets"] = thread_tweets
-        
-        return self._make_request("POST", "/posts", payload)
+        return self._make_request("POST", "/v1/drafts/", payload)
     
     def get_drafts(self) -> List[Dict[str, Any]]:
         """Get all draft posts"""
-        return self._make_request("GET", "/drafts")
+        return self._make_request("GET", "/v1/drafts/recently-scheduled/")
     
     def get_scheduled_posts(self) -> List[Dict[str, Any]]:
         """Get all scheduled posts"""
-        return self._make_request("GET", "/posts", params={"status": "scheduled"})
+        return self._make_request("GET", "/v1/drafts/recently-scheduled/")
     
     def _make_request(self, method: str, endpoint: str, data: Optional[Dict[str, Any]] = None, 
                      params: Optional[Dict[str, Any]] = None) -> Dict[str, Any]:

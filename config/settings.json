@@ -26,9 +26,9 @@
     "learning_update_frequency": "daily"
   },
   "cost_limits": {
-    "daily_token_limit": 50000,
-    "episode_token_limit": 25000,
-    "monthly_budget_usd": 20,
+    "daily_token_limit": 100000,
+    "episode_token_limit": 50000,
+    "monthly_budget_usd": 50,
     "max_insights_per_episode": 8,
     "enable_cost_monitoring": true
   },
